@@ -52,11 +52,22 @@ contract Raffle is VRFConsumerBaseV2 {
         emit RaffleEntered(msg.sender);
     }
 
-    function pickWinner() public {
-        require(
-            block.timestamp == i_interval + lastTimeStamp,
-            "Time not passed!"
-        );
+    function checkUpkeep(
+        bytes calldata /* checkData */
+    ) public returns (bool upkeepNeeded, bytes memory /* performData */) {
+        bool timeHasPassed = block.timestamp > lastTimeStamp + i_interval;
+        bool isOpen = currentStatus == Status.OPEN;
+        bool hasBalance = address(this).balance > 0;
+        bool hasPlayers = s_player.length > 3;
+
+        upkeepNeeded = (timeHasPassed && isOpen && hasBalance && hasPlayers);
+        return (upkeepNeeded, "0x0");
+    }
+
+    function performUpkeep(bytes calldata /* performData */) external {
+        (bool upkeepNeeded, ) = checkUpkeep("0x0");
+        require(upkeepNeeded, "Condition not fullfilled!");
+
         currentStatus = Status.CALCULATING;
 
         uint256 requestId = COORDINATOR.requestRandomWords(
