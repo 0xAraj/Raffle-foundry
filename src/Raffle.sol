@@ -20,7 +20,6 @@ contract Raffle is VRFConsumerBaseV2, AutomationCompatibleInterface {
 
     enum Status {
         OPEN,
-        CLOSED,
         CALCULATING
     }
     Status public currentStatus;
