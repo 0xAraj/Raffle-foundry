@@ -35,6 +35,10 @@ contract RaffleTest is Test {
         vm.deal(PLAYER, 10e18);
     }
 
+    function testRaffleInitialStateIsOpen() public view {
+        assert(uint(raffle.currentStatus()) == 0);
+    }
+
     function testEnterRaffleFailIfNotEnoughEth() public {
         vm.prank(PLAYER);
         vm.expectRevert();
@@ -54,5 +58,51 @@ contract RaffleTest is Test {
         vm.expectEmit(address(raffle));
         emit RaffleEntered(PLAYER);
         raffle.enterRaffle{value: 0.01 ether}();
+    }
+
+    // function testCantEnterRaffleWhenItIsCalculating() public {
+    //    vm.prank(PLAYER);
+    //    raffle.enterRaffle{value: 0.01 ether}();
+
+    //    vm.warp(block.timestamp + interval + 1);
+    //    vm.roll(block.number + 1);
+
+    //    raffle.
+    // }
+
+    function testCheckUpKeepReturnsFalseIfTimeHasNotPassed() public {
+        for (uint160 i = 1; i < 5; i++) {
+            hoax(address(i), 5e18);
+            raffle.enterRaffle{value: 0.01 ether}();
+        }
+
+        (bool upKeepNeeded, ) = raffle.checkUpkeep("");
+        assert(upKeepNeeded == false);
+    }
+
+    function testCheckUpKeepReturnsFalseIfPlayerAndBalanceIsNotGreaterThanThreeAndZero()
+        public
+    {
+        vm.prank(PLAYER);
+        raffle.enterRaffle{value: 0.01 ether}();
+
+        vm.warp(block.timestamp + interval + 1);
+        vm.roll(block.number + 1);
+
+        (bool upKeepNeeded, ) = raffle.checkUpkeep("");
+        assert(upKeepNeeded == false);
+    }
+
+    function testCheckUpKeepReturnsTrueWhenAllAreTrue() public {
+        for (uint160 i = 1; i < 5; i++) {
+            hoax(address(i), 5e18);
+            raffle.enterRaffle{value: 0.01 ether}();
+        }
+
+        vm.warp(block.timestamp + interval + 1);
+        vm.roll(block.number + 1);
+
+        (bool upKeepNeeded, ) = raffle.checkUpkeep("");
+        assert(upKeepNeeded == true);
     }
 }
