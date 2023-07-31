@@ -3,8 +3,9 @@
 pragma solidity 0.8.20;
 import {VRFCoordinatorV2Interface} from "@chainlink/contracts/src/v0.8/interfaces/VRFCoordinatorV2Interface.sol";
 import {VRFConsumerBaseV2} from "@chainlink/contracts/src/v0.8/VRFConsumerBaseV2.sol";
+import {AutomationCompatibleInterface} from "@chainlink/contracts/src/v0.8/interfaces/AutomationCompatibleInterface.sol";
 
-contract Raffle is VRFConsumerBaseV2 {
+contract Raffle is VRFConsumerBaseV2, AutomationCompatibleInterface {
     VRFCoordinatorV2Interface COORDINATOR;
     uint64 public immutable i_subscriptionId;
     uint256 public immutable i_entranceFee;
@@ -28,10 +29,10 @@ contract Raffle is VRFConsumerBaseV2 {
 
     constructor(
         uint256 entranceFee,
-        address vrfAddress,
         uint256 interval,
-        uint64 subscriptionId,
+        address vrfAddress,
         bytes32 keyHash,
+        uint64 subscriptionId,
         uint32 callbackGasLimit
     ) VRFConsumerBaseV2(vrfAddress) {
         COORDINATOR = VRFCoordinatorV2Interface(vrfAddress);
@@ -53,8 +54,13 @@ contract Raffle is VRFConsumerBaseV2 {
     }
 
     function checkUpkeep(
-        bytes calldata /* checkData */
-    ) public returns (bool upkeepNeeded, bytes memory /* performData */) {
+        bytes memory /*checkData*/
+    )
+        public
+        view
+        override
+        returns (bool upkeepNeeded, bytes memory /* performData */)
+    {
         bool timeHasPassed = block.timestamp > lastTimeStamp + i_interval;
         bool isOpen = currentStatus == Status.OPEN;
         bool hasBalance = address(this).balance > 0;
@@ -64,8 +70,8 @@ contract Raffle is VRFConsumerBaseV2 {
         return (upkeepNeeded, "0x0");
     }
 
-    function performUpkeep(bytes calldata /* performData */) external {
-        (bool upkeepNeeded, ) = checkUpkeep("0x0");
+    function performUpkeep(bytes calldata /* performData */) external override {
+        (bool upkeepNeeded, ) = checkUpkeep("");
         require(upkeepNeeded, "Condition not fullfilled!");
 
         currentStatus = Status.CALCULATING;
