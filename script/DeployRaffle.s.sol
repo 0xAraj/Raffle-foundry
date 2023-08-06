@@ -23,12 +23,12 @@ contract DeployRaffle is Script {
 
         vm.startBroadcast();
         raffle = new Raffle(
-            entranceFee,
-            interval,
             vrfAddress,
             keyHash,
+            callbackGasLimit,
             subscriptionId,
-            callbackGasLimit
+            entranceFee,
+            interval
         );
         vm.stopBroadcast();
         return (raffle, helperConfig);
