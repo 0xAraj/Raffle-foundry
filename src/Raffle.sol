@@ -3,20 +3,21 @@
 pragma solidity 0.8.20;
 import {VRFCoordinatorV2Interface} from "@chainlink/contracts/src/v0.8/interfaces/VRFCoordinatorV2Interface.sol";
 import {VRFConsumerBaseV2} from "@chainlink/contracts/src/v0.8/VRFConsumerBaseV2.sol";
-import {AutomationCompatibleInterface} from "@chainlink/contracts/src/v0.8/interfaces/AutomationCompatibleInterface.sol";
 
-contract Raffle is VRFConsumerBaseV2, AutomationCompatibleInterface {
+contract Raffle is VRFConsumerBaseV2 {
     VRFCoordinatorV2Interface COORDINATOR;
-    uint64 public immutable i_subscriptionId;
-    uint256 public immutable i_entranceFee;
-    uint256 public immutable i_interval;
+    uint64 public constant SUBSCRIPTION_ID = 4018;
+    uint256 public constant ENTRANCE_FEE = 0.01 ether;
+    uint256 public constant INTERVAL = 3;
     uint256 public lastTimeStamp;
-    bytes32 public immutable i_keyHash;
-    uint32 public immutable i_callbackGasLimit;
-    uint16 public constant REQUEST_CONFIRMATIONS = 1;
+    bytes32 public constant KEYHASH =
+        0x474e34a077df58807dbe9c96d3c009b23b3c6d0cce433e59bbf5b34f823bc56c;
+    uint32 public constant CALLBACK_GASLIMIT = 2500000;
+    uint16 public constant REQUEST_CONFIRMATIONS = 3;
     uint32 public constant NUM_WORDS = 1;
     address payable[] public s_player;
     address payable public s_recentWinner;
+    uint256 public lastRequestId;
 
     enum Status {
         OPEN,
@@ -26,68 +27,46 @@ contract Raffle is VRFConsumerBaseV2, AutomationCompatibleInterface {
     event RaffleEntered(address indexed player);
     event RaffleWinner(address indexed winner);
 
-    constructor(
-        uint256 entranceFee,
-        uint256 interval,
-        address vrfAddress,
-        bytes32 keyHash,
-        uint64 subscriptionId,
-        uint32 callbackGasLimit
-    ) VRFConsumerBaseV2(vrfAddress) {
-        COORDINATOR = VRFCoordinatorV2Interface(vrfAddress);
-        i_entranceFee = entranceFee;
+    constructor()
+        VRFConsumerBaseV2(0x8103B0A8A00be2DDC778e6e7eaa21791Cd364625)
+    {
+        COORDINATOR = VRFCoordinatorV2Interface(
+            0x8103B0A8A00be2DDC778e6e7eaa21791Cd364625
+        );
         lastTimeStamp = block.timestamp;
-        i_interval = interval;
-        i_subscriptionId = subscriptionId;
-        i_keyHash = keyHash;
-        i_callbackGasLimit = callbackGasLimit;
-        currentStatus = Status.OPEN;
     }
 
     function enterRaffle() public payable {
         require(currentStatus == Status.OPEN, "Raffle not open!");
-        require(msg.value == i_entranceFee, "Not enough fee!");
+        require(msg.value == ENTRANCE_FEE, "Not enough fee!");
 
         s_player.push(payable(msg.sender));
         emit RaffleEntered(msg.sender);
     }
 
-    function checkUpkeep(
-        bytes memory /*checkData*/
-    )
-        public
-        view
-        override
-        returns (bool upkeepNeeded, bytes memory /* performData */)
-    {
-        bool timeHasPassed = block.timestamp > lastTimeStamp + i_interval;
-        bool isOpen = currentStatus == Status.OPEN;
-        bool hasBalance = address(this).balance > 0;
-        bool hasPlayers = s_player.length > 3;
-
-        upkeepNeeded = (timeHasPassed && isOpen && hasBalance && hasPlayers);
-        return (upkeepNeeded, "0x0");
-    }
-
-    function performUpkeep(bytes calldata /* performData */) external override {
-        (bool upkeepNeeded, ) = checkUpkeep("");
-        require(upkeepNeeded, "Condition not fullfilled!");
-
+    function pickWinner() external returns (uint256 requestId) {
+        require(
+            block.timestamp > lastTimeStamp + INTERVAL,
+            "Time has not passed!!"
+        );
+        require(s_player.length > 1, "Not enough players!!");
         currentStatus = Status.CALCULATING;
 
-        uint256 requestId = COORDINATOR.requestRandomWords(
-            i_keyHash,
-            i_subscriptionId,
+        requestId = COORDINATOR.requestRandomWords(
+            KEYHASH,
+            SUBSCRIPTION_ID,
             REQUEST_CONFIRMATIONS,
-            i_callbackGasLimit,
+            CALLBACK_GASLIMIT,
             NUM_WORDS
         );
+        return requestId;
     }
 
     function fulfillRandomWords(
         uint256 requestId,
         uint256[] memory randomWords
     ) internal override {
+        lastRequestId = requestId;
         uint256 indexOfWinner = randomWords[0] % s_player.length;
         s_recentWinner = s_player[indexOfWinner];
         s_player = new address payable[](0);

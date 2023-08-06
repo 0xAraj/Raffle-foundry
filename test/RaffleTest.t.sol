@@ -22,17 +22,18 @@ contract RaffleTest is Test {
     event RaffleEntered(address indexed player);
 
     function setUp() external {
-        DeployRaffle deployRaffle = new DeployRaffle();
-        (raffle, helperConfig) = deployRaffle.run();
-        (
-            entranceFee,
-            interval,
-            vrfAddress,
-            keyHash,
-            subscriptionId,
-            callbackGasLimit
-        ) = helperConfig.activeNetwork();
-        vm.deal(PLAYER, 10e18);
+        // DeployRaffle deployRaffle = new DeployRaffle();
+        // (raffle, helperConfig) = deployRaffle.run();
+        // (
+        //     entranceFee,
+        //     interval,
+        //     vrfAddress,
+        //     keyHash,
+        //     subscriptionId,
+        //     callbackGasLimit
+        // ) = helperConfig.activeNetwork();
+        // vm.deal(PLAYER, 10e18);
+        raffle = Raffle(0xa9CCc63fC43f6Fce418D09f23A4Dd7B2f726637c);
     }
 
     function testRaffleInitialStateIsOpen() public view {
@@ -104,5 +105,21 @@ contract RaffleTest is Test {
 
         (bool upKeepNeeded, ) = raffle.checkUpkeep("");
         assert(upKeepNeeded == true);
+    }
+
+    function testPlayersEnterAndWinnerGotSelected() public {
+        for (uint160 i = 1; i < 5; i++) {
+            hoax(address(i), 5e18);
+            raffle.enterRaffle{value: 0.01 ether}();
+        }
+
+        vm.warp(block.timestamp + interval + 1);
+        vm.roll(block.number + 1);
+        uint256 initialRaffleBalance = address(raffle).balance;
+        console.log(initialRaffleBalance);
+
+        (bool upKeepNeeded, ) = raffle.checkUpkeep("");
+        uint256 finalRaffleBalance = address(raffle).balance;
+        console.log(finalRaffleBalance);
     }
 }
