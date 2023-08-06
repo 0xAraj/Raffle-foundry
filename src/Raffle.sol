@@ -6,18 +6,17 @@ import {VRFConsumerBaseV2} from "@chainlink/contracts/src/v0.8/VRFConsumerBaseV2
 
 contract Raffle is VRFConsumerBaseV2 {
     VRFCoordinatorV2Interface COORDINATOR;
-    uint64 public constant SUBSCRIPTION_ID = 4018;
-    uint256 public constant ENTRANCE_FEE = 0.01 ether;
-    uint256 public constant INTERVAL = 3;
-    uint256 public lastTimeStamp;
-    bytes32 public constant KEYHASH =
-        0x474e34a077df58807dbe9c96d3c009b23b3c6d0cce433e59bbf5b34f823bc56c;
-    uint32 public constant CALLBACK_GASLIMIT = 2500000;
+    uint64 public immutable i_subscriptionId;
+    uint256 public immutable i_entranceFee;
+    uint256 public immutable i_interval;
+    bytes32 public immutable i_keyHash;
+    uint32 public immutable i_callbackGasLimit;
     uint16 public constant REQUEST_CONFIRMATIONS = 3;
     uint32 public constant NUM_WORDS = 1;
     address payable[] public s_player;
     address payable public s_recentWinner;
     uint256 public lastRequestId;
+    uint256 public lastTimeStamp;
 
     enum Status {
         OPEN,
@@ -27,18 +26,26 @@ contract Raffle is VRFConsumerBaseV2 {
     event RaffleEntered(address indexed player);
     event RaffleWinner(address indexed winner);
 
-    constructor()
-        VRFConsumerBaseV2(0x8103B0A8A00be2DDC778e6e7eaa21791Cd364625)
-    {
-        COORDINATOR = VRFCoordinatorV2Interface(
-            0x8103B0A8A00be2DDC778e6e7eaa21791Cd364625
-        );
+    constructor(
+        address vrfAddress,
+        bytes32 keyHash,
+        uint32 callbackGasLimit,
+        uint64 subscriptionId,
+        uint256 entranceFee,
+        uint256 interval
+    ) VRFConsumerBaseV2(vrfAddress) {
+        COORDINATOR = VRFCoordinatorV2Interface(vrfAddress);
+        i_keyHash = keyHash;
+        i_callbackGasLimit = callbackGasLimit;
+        i_subscriptionId = subscriptionId;
+        i_entranceFee = entranceFee;
+        i_interval = interval;
         lastTimeStamp = block.timestamp;
     }
 
     function enterRaffle() public payable {
         require(currentStatus == Status.OPEN, "Raffle not open!");
-        require(msg.value == ENTRANCE_FEE, "Not enough fee!");
+        require(msg.value == i_entranceFee, "Not enough fee!");
 
         s_player.push(payable(msg.sender));
         emit RaffleEntered(msg.sender);
@@ -46,17 +53,17 @@ contract Raffle is VRFConsumerBaseV2 {
 
     function pickWinner() external returns (uint256 requestId) {
         require(
-            block.timestamp > lastTimeStamp + INTERVAL,
+            block.timestamp > lastTimeStamp + i_interval,
             "Time has not passed!!"
         );
-        require(s_player.length > 1, "Not enough players!!");
+        require(s_player.length > 2, "Not enough players!!");
         currentStatus = Status.CALCULATING;
 
         requestId = COORDINATOR.requestRandomWords(
-            KEYHASH,
-            SUBSCRIPTION_ID,
+            i_keyHash,
+            i_subscriptionId,
             REQUEST_CONFIRMATIONS,
-            CALLBACK_GASLIMIT,
+            i_callbackGasLimit,
             NUM_WORDS
         );
         return requestId;
