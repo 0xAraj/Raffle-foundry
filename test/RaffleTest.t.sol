@@ -38,7 +38,6 @@ contract RaffleTest is Test {
         vm.deal(PLAYER1, 10e18);
         vm.deal(PLAYER2, 10e18);
         vm.deal(PLAYER3, 10e18);
-        console.log(address(raffle));
     }
 
     function testRaffleInitialStateIsOpen() public view {
@@ -84,15 +83,44 @@ contract RaffleTest is Test {
         raffle.enterRaffle{value: 0.01 ether}();
     }
 
-    // function testPickWinnerFailsIfTimeNotPassed() public {
-    //     for (uint160 i = 1; i < 5; i++) {
-    //         hoax(address(i), 5e18);
-    //         raffle.enterRaffle{value: 0.01 ether}();
-    //     }
-    //     console.log(block.timestamp);
-    //     console.log(raffle.lastTimeStamp());
-    //     vm.prank(PLAYER1);
-    //     // vm.expectRevert();
-    //     raffle.pickWinner();
-    // }
+    function testPickWinnerFailsIfTimeNotPassed() public {
+        for (uint160 i = 1; i < 5; i++) {
+            hoax(address(i), 5e18);
+            raffle.enterRaffle{value: 0.01 ether}();
+        }
+        console.log(block.timestamp);
+        console.log(raffle.lastTimeStamp());
+        vm.prank(PLAYER1);
+        // vm.expectRevert();
+        raffle.pickWinner();
+    }
+
+    // Above test will not fail because lastTimestamp is when we deployed our contract and interval is 30 sec, so the time passed because we are testing a deployed contract on forked chain.You can console.log both lastTimestamp and block.timestamp.
+
+    function testPickWinnerFailsIfNotEnoughPlayers() public {
+        vm.prank(PLAYER1);
+        raffle.enterRaffle{value: 0.01 ether}();
+
+        vm.warp(block.timestamp + interval + 1);
+        vm.roll(block.number + 1);
+
+        vm.prank(PLAYER1);
+        vm.expectRevert();
+        raffle.pickWinner();
+    }
+
+    function testPickWinnnerShouldRetunsRequestId() public {
+        for (uint160 i = 1; i < 5; i++) {
+            hoax(address(i), 5e18);
+            raffle.enterRaffle{value: 0.01 ether}();
+        }
+        vm.warp(block.timestamp + interval + 1);
+        vm.roll(block.number + 1);
+
+        uint256 requestId = raffle.pickWinner();
+        console.log(requestId);
+        assert(requestId != 0);
+    }
+
+    // fulfillRandomWords, we can't test because it can be only called by a chainlink node and we are testing it on forked chain not on actual chain. One way is that we have to deploy every vrf contract locally and test it.
 }
