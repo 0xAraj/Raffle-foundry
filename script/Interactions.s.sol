@@ -26,11 +26,12 @@ contract PickWinner is Script {
     address sepoliaSmartContractAddress =
         0x99fd723c10c490fb1Ba8b66e1dEFbb4DD0c7DbDb;
 
-    function pickWinner() public {
+    function pickWinner() public returns (uint256) {
         Raffle raffle = Raffle(sepoliaSmartContractAddress);
         vm.startBroadcast();
-        raffle.pickWinner();
+        uint256 requestId = raffle.pickWinner();
         vm.stopBroadcast();
+        return requestId;
     }
 
     function run() external {
